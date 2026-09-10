@@ -39,6 +39,7 @@ SEEDS = (2024, 2025, 2026)
 METHODS = ("Base", "Symmetric", "Ours")
 METHOD_DIRECTORIES = {"Base": "base", "Symmetric": "symmetric", "Ours": "ours"}
 METRICS = ("recall@10", "ndcg@10", "recall@20", "ndcg@20")
+SCALE_FLOOR = 40.0
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -143,6 +144,10 @@ def load_embedding(dataset: str, upstream: str, item_num: int, device: str) -> t
         raise ValueError("embedding contains a non-finite value")
     if not np.array_equal(array[0], np.zeros_like(array[0])):
         raise ValueError("embedding row zero must be the padding vector")
+    median_norm = float(np.median(np.linalg.norm(array[1:], axis=1)))
+    if not math.isfinite(median_norm) or median_norm <= 0:
+        raise ValueError(median_norm)
+    array = array * max(1.0, SCALE_FLOOR / median_norm)
     return torch.from_numpy(array).float().to(device)
 
 
